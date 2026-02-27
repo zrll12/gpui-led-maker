@@ -28,16 +28,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Application::new().run(move |cx| {
         gpui_component::init(cx);
         cx.set_global(AppState::new());
-        cx.on_action(gui::quit);
-        cx.on_action(gui::new_file);
-        cx.on_action(gui::open_file);
+        cx.on_action(gui::menu::quit);
+        cx.on_action(gui::menu::new_file);
+        cx.on_action(gui::menu::open_file);
         cx.activate(true);
         set_app_menus(cx);
 
         let window_options = WindowOptions::default();
         cx.spawn(async move |cx| {
             cx.open_window(window_options, |window, cx| {
-                let view = cx.new(|cx| MainPage::new());
+                let view = cx.new(|cx| MainPage::new(cx, window));
                 cx.new(|cx| gpui_component::Root::new(view, window, cx))
             })
                 .unwrap();

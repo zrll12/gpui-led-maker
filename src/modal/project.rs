@@ -1,4 +1,7 @@
+use std::io;
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use crate::modal::AppError;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct LedMakerProject {
@@ -11,4 +14,13 @@ pub struct LedMakerProject {
 pub struct Frame {
     pub name: String,
     pub contents: String,
+}
+
+impl LedMakerProject {
+    pub fn load(path: &PathBuf) -> Result<Self, AppError> {
+        let file = std::fs::read_to_string(&path)?;
+        let project: Self = toml::from_str(&file)?;
+        
+        Ok(project)
+    }
 }
