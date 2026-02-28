@@ -10,4 +10,6 @@ pub enum AppError {
     FileError(#[from] std::io::Error),
     #[error("This data is corrupted: {0}")]
     DeserializeError(#[from] toml::de::Error),
+    #[error("Cannot serialize data: {0}")]
+    SerializeError(#[from] toml::ser::Error),
 }

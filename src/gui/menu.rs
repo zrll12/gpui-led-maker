@@ -1,7 +1,7 @@
 use crate::gui::{NewFile, OpenFile, Quit};
 use crate::modal::app_state::AppState;
-use gpui::{App, Menu, MenuItem, SystemMenuType};
-use rfd::{FileDialog, MessageDialog};
+use gpui::{App, BorrowAppContext, Menu, MenuItem, SystemMenuType};
+use rfd::{AsyncFileDialog, MessageDialog};
 use crate::modal::project::LedMakerProject;
 
 pub fn set_app_menus(cx: &mut App) {
@@ -37,27 +37,35 @@ pub fn new_file(_: &NewFile, cx: &mut App) {
 }
 
 pub fn open_file(_: &OpenFile, cx: &mut App) {
-    let files = FileDialog::new()
-        .add_filter("project file", &["ledm", "toml"])
-        .add_filter("all files", &["*"])
-        .set_directory(".")
-        .pick_file();
-    let Some(path) = files else { return; };
+    cx.spawn(async move |cx| {
+        let file = AsyncFileDialog::new()
+            .add_filter("project file", &["ledm", "toml"])
+            .add_filter("all files", &["*"])
+            .set_directory(".")
+            .pick_file()
+            .await;
+        let Some(file) = file else { return; };
+        let path = file.path().to_path_buf();
 
-    match LedMakerProject::load(&path) {
-        Ok(proj) => {
-            let app_state = cx.global_mut::<AppState>();
-            app_state.file_path = Some(path);
-            app_state.current_project = proj;
+        match LedMakerProject::load(&path) {
+            Ok(proj) => {
+                let _ = cx.update(|cx| {
+                    let app_state = cx.global_mut::<AppState>();
+                    app_state.file_path = Some(path);
+                    app_state.current_project = proj;
+                });
+            }
+            Err(err) => {
+                println!("Error loading project: {}", err);
+                MessageDialog::new()
+                    .set_title("Error")
+                    .set_description(format!("Failed to load project:\n{}", err))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .set_level(rfd::MessageLevel::Error)
+                    .show();
+            }
         }
-        Err(err) => {
-            println!("Error loading project: {}", err);
-            MessageDialog::new()
-                .set_title("Error")
-                .set_description(&format!("Failed to load project:\n{}", err))
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_level(rfd::MessageLevel::Error)
-                .show();
-        }
-    }
+
+    })
+    .detach();
 }

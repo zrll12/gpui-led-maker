@@ -23,4 +23,11 @@ impl LedMakerProject {
         
         Ok(project)
     }
+    
+    pub fn save(&self, path: &PathBuf) -> Result<(), AppError> {
+        let toml_string = toml::to_string(self)?;
+        std::fs::write(path, toml_string)?;
+        
+        Ok(())
+    }
 }
