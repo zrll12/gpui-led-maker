@@ -9,7 +9,7 @@ use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::resizable::ResizableState;
 use gpui_component::{ActiveTheme, h_flex, v_flex, violet};
 use rfd::{FileDialog, MessageDialog};
-use simple_gpui::{component, component_property, init_with_context};
+use simple_gpui::{component, component_property, init_with_context, observe};
 use crate::modal::app_state::AppState;
 
 #[component]
@@ -22,7 +22,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         input.set_value(project_original.name.clone(), window, cx);
         input
     }));
-    component_property!(_app_state_observer: Subscription = cx.observe_global_in::<AppState>(window, |page, window, cx| {
+    observe!(AppState, |page, window, cx| {
         let app_state = cx.global::<AppState>();
         let path = app_state.file_path.clone();
         let project = app_state.current_project.clone();
@@ -34,7 +34,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         });
 
         cx.notify();
-    }));
+    });
     subscribe!(
         project_name_input,
         |view, _state, event, _window, cx| match event {
@@ -60,6 +60,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         )
         .child(
             div().flex_grow()
+        
         )
         .child(
             h_flex()

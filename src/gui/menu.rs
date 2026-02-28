@@ -1,6 +1,6 @@
 use crate::gui::{NewFile, OpenFile, Quit};
 use crate::modal::app_state::AppState;
-use gpui::{App, BorrowAppContext, Menu, MenuItem, SystemMenuType};
+use gpui::{App, Menu, MenuItem, SystemMenuType};
 use rfd::{AsyncFileDialog, MessageDialog};
 use crate::modal::project::LedMakerProject;
 

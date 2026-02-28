@@ -5459,18 +5459,18 @@ dependencies = [
 
 [[package]]
 name = "simple-gpui"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "870b6047b9343b5aec5b52769957c09a2c139da9b545d9fc347e2731d5a5a301"
+checksum = "4a1d29c74c4107e17e8197dc3b7708e4b3ca5cbb1cc3262c705387361db9db4c"
 dependencies = [
  "simple_gpui_core",
 ]
 
 [[package]]
 name = "simple_gpui_core"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08ef9279da7e75488014b03d1eb237b48d298d0aa9b0ffe4ab21d6d899101655"
+checksum = "1cc3d7b7374d42d764bf317bfae4f34b4ea8eb7c789671f768470402c6d93490"
 dependencies = [
  "case",
  "proc-macro2",
