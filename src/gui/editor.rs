@@ -6,7 +6,7 @@ use gpui::{AppContext, Context, Entity, IntoElement, ParentElement, Styled, Wind
 use gpui_component::button::Button;
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::{h_flex, v_flex};
-use rfd::{FileDialog, MessageDialog};
+use rfd::{AsyncFileDialog, MessageDialog};
 use simple_gpui::component;
 
 #[component]
@@ -63,7 +63,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 Button::new("editor-save")
                     .label("Save")
                     .on_click(cx.listener(|view, _, _, cx| {
-                        save_project(&view.project, cx);
+                        save_project(view.project.clone(), cx);
                     }))
                     .px_6()
                     .py_2(),
@@ -71,32 +71,50 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         )
 }
 
-fn save_project(project: &LedMakerProject, cx: &mut Context<Editor>) {
+fn save_project<T: 'static>(project: LedMakerProject, cx: &mut Context<T>) {
     println!("Saving project: {}", project.name);
-    let app_state = cx.global_mut::<AppState>();
-    if app_state.file_path.is_none() {
-        let files = FileDialog::new()
-            .add_filter("project file", &["ledm", "toml"])
-            .add_filter("all files", &["*"])
-            .set_directory(".")
-            .save_file();
-        let Some(path) = files else {
-            return;
-        };
-        app_state.file_path = Some(path);
-    }
-    app_state.current_project = project.clone();
+    let file_path = cx.global::<AppState>().file_path.clone();
 
-    match project.save(app_state.file_path.as_ref().unwrap()) {
-        Ok(_) => println!("Project saved successfully."),
-        Err(err) => {
-            println!("Error saving project: {}", err);
-            MessageDialog::new()
-                .set_title("Error")
-                .set_description(&format!("Failed to save project:\n{}", err))
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_level(rfd::MessageLevel::Error)
-                .show();
-        }
-    }
+    cx.spawn(
+        move |_: gpui::WeakEntity<T>, cx: &mut gpui::AsyncApp| {
+            let cx = cx.clone();
+            async move {
+                let path = if let Some(path) = file_path {
+                    path
+                } else {
+                    let file = AsyncFileDialog::new()
+                        .add_filter("project file", &["ledm", "toml"])
+                        .add_filter("all files", &["*"])
+                        .set_directory(".")
+                        .save_file()
+                        .await;
+                    let Some(file) = file else {
+                        return;
+                    };
+                    file.path().to_path_buf()
+                };
+
+                let project_for_state = project.clone();
+                let path_for_state = path.clone();
+                let _ = cx.update_global::<AppState, _>(|app_state, _| {
+                    app_state.file_path = Some(path_for_state);
+                    app_state.current_project = project_for_state;
+                });
+
+                match project.save(&path) {
+                    Ok(_) => println!("Project saved successfully."),
+                    Err(err) => {
+                        println!("Error saving project: {}", err);
+                        MessageDialog::new()
+                            .set_title("Error")
+                            .set_description(&format!("Failed to save project:\n{}", err))
+                            .set_buttons(rfd::MessageButtons::Ok)
+                            .set_level(rfd::MessageLevel::Error)
+                            .show();
+                    }
+                }
+            }
+        },
+    )
+    .detach();
 }
