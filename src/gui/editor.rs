@@ -1,37 +1,36 @@
 use crate::gui::Render;
+use crate::modal::app_state::AppState;
 use crate::modal::project::LedMakerProject;
-use gpui::{
-    AppContext, Context, Entity, IntoElement, ParentElement, RenderOnce, Styled, Window, div,
-};
-use gpui::{Subscription, px, rems};
+use gpui::Subscription;
+use gpui::{AppContext, Context, Entity, IntoElement, ParentElement, Styled, Window, div};
 use gpui_component::button::Button;
 use gpui_component::input::{Input, InputEvent, InputState};
-use gpui_component::resizable::ResizableState;
-use gpui_component::{ActiveTheme, h_flex, v_flex, violet};
+use gpui_component::{h_flex, v_flex};
 use rfd::{FileDialog, MessageDialog};
-use simple_gpui::{component, component_property, init_with_context, observe};
-use crate::modal::app_state::AppState;
+use simple_gpui::component;
 
 #[component]
 pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
     init_with_context!();
     component_property!(project_original: LedMakerProject);
     component_property!(project: LedMakerProject = project_original.clone());
-    component_property!(project_name_input: Entity<InputState> = cx.new(|cx| {
+    component_entity!(project_name_input: InputState = {
         let mut input = InputState::new(window, cx).placeholder("Unnamed Project");
         input.set_value(project_original.name.clone(), window, cx);
         input
-    }));
+    });
     observe!(AppState, |page, window, cx| {
         let app_state = cx.global::<AppState>();
         let path = app_state.file_path.clone();
         let project = app_state.current_project.clone();
-        println!("AppState changed: file_path={:?}, project_name={}", path, project.name);
+        println!(
+            "AppState changed: file_path={:?}, project_name={}",
+            path, project.name
+        );
         page.project = project;
         let project_name = page.project.name.clone();
-        page.project_name_input.update(cx, |input, cx| {
-            input.set_value(project_name, window, cx)
-        });
+        page.project_name_input
+            .update(cx, |input, cx| input.set_value(project_name, window, cx));
 
         cx.notify();
     });
@@ -58,23 +57,17 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 .child("Project name:")
                 .child(Input::new(&self.project_name_input).w_full().flex_grow()),
         )
+        .child(div().flex_grow())
         .child(
-            div().flex_grow()
-        
-        )
-        .child(
-            h_flex()
-                .w_full()
-                .justify_center()
-                .child(
-                    Button::new("editor-save")
-                        .label("Save")
-                        .on_click(cx.listener(|view, _, _, cx| {
-                            save_project(&view.project, cx);
-                        }))
-                        .px_6()
-                        .py_2()
-                )
+            h_flex().w_full().justify_center().child(
+                Button::new("editor-save")
+                    .label("Save")
+                    .on_click(cx.listener(|view, _, _, cx| {
+                        save_project(&view.project, cx);
+                    }))
+                    .px_6()
+                    .py_2(),
+            ),
         )
 }
 
@@ -87,7 +80,9 @@ fn save_project(project: &LedMakerProject, cx: &mut Context<Editor>) {
             .add_filter("all files", &["*"])
             .set_directory(".")
             .save_file();
-        let Some(path) = files else { return; };
+        let Some(path) = files else {
+            return;
+        };
         app_state.file_path = Some(path);
     }
     app_state.current_project = project.clone();
@@ -102,6 +97,6 @@ fn save_project(project: &LedMakerProject, cx: &mut Context<Editor>) {
                 .set_buttons(rfd::MessageButtons::Ok)
                 .set_level(rfd::MessageLevel::Error)
                 .show();
-        },
+        }
     }
 }
