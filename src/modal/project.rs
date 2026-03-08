@@ -6,17 +6,70 @@ use rfd::{AsyncFileDialog, MessageDialog};
 use crate::modal::AppError;
 use crate::modal::app_state::AppState;
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct LedMakerProject {
     pub name: String,
     pub frames: Vec<Frame>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Frame {
     pub name: String,
-    pub contents: String,
+    pub width: u32,
+    pub height: u32,
+    pub contents: Vec<PositionedLayer>,
 }
+
+impl Default for Frame {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            width: 32,
+            height: 8,
+            contents: Vec::new(),
+        }
+    }
+}
+
+/// 带位置信息的图层包装，x/y 为图层左上角相对画布左上角的偏移（可为负）
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct PositionedLayer {
+    pub x: i32,
+    pub y: i32,
+    pub content: ComponentLayer,
+}
+
+impl Default for PositionedLayer {
+    fn default() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            content: ComponentLayer::Text(TextComponent::default()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub enum ComponentLayer {
+    Text(TextComponent),
+    Rectangle(RectangleComponent),
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+pub struct TextComponent {
+    pub text: String,
+    pub font: String,
+    pub color: (u8, u8, u8),
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+pub struct RectangleComponent {
+    pub width: u32,
+    pub height: u32,
+    pub radius: u32,
+    pub color: (u8, u8, u8),
+}
+
 
 impl LedMakerProject {
     pub fn load(path: &PathBuf) -> Result<Self, AppError> {

@@ -5,7 +5,7 @@ mod modal;
 use gpui::{AppContext, Application, WindowOptions};
 use crate::gui::MainPage;
 use crate::gui::menu::set_app_menus;
-use crate::modal::app_state::AppState;
+use crate::modal::app_state::{AppState, LiveProject};
 
 const HEX_FILE: &str = "test-data/input.hex";
 const OUTPUT_FILE: &str = "led_output.png";
@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Application::new().run(move |cx| {
         gpui_component::init(cx);
         cx.set_global(AppState::new());
+        cx.set_global(LiveProject::new());
         cx.on_action(gui::menu::quit);
         cx.on_action(gui::menu::new_file);
         cx.on_action(gui::menu::open_file);

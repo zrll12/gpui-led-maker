@@ -144,6 +144,30 @@ fn matrix_debug_enabled() -> bool {
 	std::env::var_os("LED_MAKER_MATRIX_DEBUG").is_some()
 }
 
+/// 将 `overlay` 叠加到 `base` 上，支持有符号偏移（可为负），超出 base 边界的部分被裁剪，base 尺寸不变。
+pub fn overlay_at_clipped(base: &Matrix, overlay: &Matrix, offset_x: i32, offset_y: i32) -> Matrix {
+	let mut out = base.clone();
+	let base_h = out.len() as i32;
+	let base_w = out.first().map_or(0, |r| r.len()) as i32;
+
+	for (y, overlay_row) in overlay.iter().enumerate() {
+		let target_y = offset_y + y as i32;
+		if target_y < 0 || target_y >= base_h {
+			continue;
+		}
+		let ty = target_y as usize;
+		for (x, pixel) in overlay_row.iter().enumerate() {
+			let target_x = offset_x + x as i32;
+			if target_x < 0 || target_x >= base_w {
+				continue;
+			}
+			out[ty][target_x as usize] = *pixel;
+		}
+	}
+
+	out
+}
+
 pub fn overlay_at(base: &Matrix, overlay: &Matrix, offset_x: usize, offset_y: usize) -> Matrix {
 	let mut out = base.clone();
 

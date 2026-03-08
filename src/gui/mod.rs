@@ -1,8 +1,10 @@
 mod editor;
 pub mod menu;
 mod bottom_panel;
+mod preview;
 
 use crate::gui::editor::Editor;
+use crate::gui::preview::PreviewPanel;
 use crate::modal::app_state::AppState;
 use gpui::{AppContext, Entity, IntoElement, div};
 use gpui::{Context, ParentElement, Render, Styled, Window, actions};
@@ -19,6 +21,7 @@ pub fn main_page(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElemen
         Editor::new(project, cx, window)
     });
     component_entity!(bottom_panel: BottomPanel = BottomPanel::new(cx, window));
+    component_entity!(preview_panel: PreviewPanel = PreviewPanel::new(cx, window));
     component_property!(left_panel_width: gpui::Pixels = window.viewport_size().width * 0.618);
     component_property!(preview_panel_height: gpui::Pixels = window.viewport_size().height * 0.618);
 
@@ -53,7 +56,7 @@ pub fn main_page(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElemen
                             .child(
                                 resizable_panel()
                                     .size(self.preview_panel_height)
-                                    .child("111"),
+                                    .child(self.preview_panel.clone()),
                             )
                             .child(resizable_panel().child(self.bottom_panel.clone())),
                     ),

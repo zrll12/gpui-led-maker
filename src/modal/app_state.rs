@@ -20,3 +20,14 @@ impl AppState {
 }
 
 impl Global for AppState {}
+
+/// 用于实时预览的项目状态，由编辑器直接更新，不依赖 AppState
+pub struct LiveProject(pub LedMakerProject);
+
+impl LiveProject {
+    pub fn new() -> Self {
+        Self(LedMakerProject::default())
+    }
+}
+
+impl Global for LiveProject {}
