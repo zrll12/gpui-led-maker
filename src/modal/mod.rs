@@ -2,6 +2,7 @@
 use thiserror::Error;
 
 pub mod app_state;
+pub mod config;
 pub mod project;
 
 #[derive(Error, Debug)]

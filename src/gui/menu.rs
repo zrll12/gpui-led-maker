@@ -49,8 +49,16 @@ pub fn open_file(_: &OpenFile, cx: &mut App) {
 
         match LedMakerProject::load(&path) {
             Ok(proj) => {
+                let project_name = proj.name.clone();
                 let _ = cx.update(|cx| {
                     let app_state = cx.global_mut::<AppState>();
+                    app_state
+                        .config
+                        .add_recent_project(path.clone(), project_name);
+                    if let Err(err) = app_state.config.save() {
+                        println!("Error saving config: {}", err);
+                    }
+
                     app_state.file_path = Some(path);
                     app_state.current_project = proj;
                 });

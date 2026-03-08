@@ -65,7 +65,20 @@ impl LedMakerProject {
                     });
 
                     match project.save(&path) {
-                        Ok(_) => println!("Project saved successfully."),
+                        Ok(_) => {
+                            let project_name = project.name.clone();
+                            let path_for_recent = path.clone();
+                            let _ = cx.update_global::<AppState, _>(|app_state, _| {
+                                app_state
+                                    .config
+                                    .add_recent_project(path_for_recent, project_name);
+                                if let Err(err) = app_state.config.save() {
+                                    println!("Error saving config: {}", err);
+                                }
+                            });
+
+                            println!("Project saved successfully.");
+                        }
                         Err(err) => {
                             println!("Error saving project: {}", err);
                             MessageDialog::new()
