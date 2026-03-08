@@ -1,12 +1,17 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{LazyLock, Mutex};
 
 use image::{Rgb, RgbImage};
 
 use crate::modal::config::NamedPath;
 use crate::modal::project::{ComponentLayer, Frame};
-use crate::render::bitmap::{load_bdf, text_to_matrix};
+use crate::render::bitmap::{GlyphMap, load_bdf, text_to_matrix};
 use crate::render::led_image::{LedRenderOptions, render_led_matrices};
 use crate::render::matrix::{Matrix, VerticalAlign, overlay_at_clipped};
+
+static FONT_CACHE: LazyLock<Mutex<HashMap<PathBuf, GlyphMap>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// 渲染帧为内存图片
 pub fn render_frame_to_image(frame: &Frame, font_list: &[NamedPath]) -> Option<RgbImage> {
@@ -48,7 +53,16 @@ fn render_layer(layer: &ComponentLayer, font_list: &[NamedPath]) -> Option<Matri
                 .map(|np| np.path.clone())
                 .unwrap_or(font_path);
 
-            let glyphs = load_bdf(&resolved_path).ok()?;
+            let glyphs = {
+                let mut cache = FONT_CACHE.lock().unwrap();
+                if let Some(cached) = cache.get(&resolved_path) {
+                    cached.clone()
+                } else {
+                    let g = load_bdf(&resolved_path).ok()?;
+                    cache.insert(resolved_path.clone(), g.clone());
+                    g
+                }
+            };
             let color = Rgb([text.color.0, text.color.1, text.color.2]);
             let matrix = text_to_matrix(&text.text, &glyphs, color, VerticalAlign::Bottom);
             if matrix.is_empty() {

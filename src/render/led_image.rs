@@ -1,7 +1,7 @@
 use image::{Rgb, RgbImage};
 use imageproc::drawing::draw_filled_circle_mut;
 
-use crate::render::{bitmap::GLYPH_HEIGHT, matrix::Matrix};
+use crate::render::matrix::Matrix;
 
 pub struct LedRenderOptions {
     pub led_size: u32,
@@ -24,7 +24,7 @@ impl Default for LedRenderOptions {
 pub fn render_led_matrices(matrix: &Matrix, options: &LedRenderOptions) -> RgbImage {
     let total_cols = matrix.first().map_or(0, |row| row.len() as u32);
 
-    let rows = GLYPH_HEIGHT as u32;
+    let rows = matrix.len() as u32;
     let cell = options.led_size + options.spacing;
     let img_width = total_cols.max(1) * cell;
     let img_height = rows * cell;
