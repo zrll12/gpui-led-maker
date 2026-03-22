@@ -4,10 +4,10 @@ mod recent_projects;
 use crate::gui::Render;
 use gpui::{AnyElement, AppContext, Context, Entity, IntoElement, ParentElement, Styled, Window, div};
 use gpui_component::tab::{Tab, TabBar};
-use simple_gpui::{component, component_entity, component_property, init_with_context};
+use simple_gpui::component;
 
 #[component]
-pub fn bottom_panel(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+pub fn bottom_panel(_window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
     init_with_context!();
     component_property!(selected_tab: usize = 0);
     component_entity!(fonts: fonts::Fonts = fonts::Fonts::new());

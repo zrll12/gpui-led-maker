@@ -10,8 +10,8 @@ use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::scroll::ScrollableElement;
 use gpui_component::{ActiveTheme, h_flex, v_flex};
 use simple_gpui::component;
-use crate::gui::editor::rect_component_editor::build_rect_property_editor;
-use crate::gui::editor::text_component_editor::build_text_property_editor;
+use crate::gui::editor::rect_component_editor::RectPropertyEditor;
+use crate::gui::editor::text_component_editor::TextPropertyEditor;
 
 fn sync_live_project(cx: &mut impl BorrowAppContext, project: &LedMakerProject) {
     cx.update_global::<LiveProject, _>(|lp, _| lp.0 = project.clone());
@@ -54,47 +54,8 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         s.set_value("0".to_string(), window, cx); s
     });
 
-    // 文字图层属性输入
-    component_entity!(text_content_input: InputState = InputState::new(window, cx).placeholder("输入文字"));
-    component_entity!(text_font_input: InputState = InputState::new(window, cx).placeholder("字体文件路径 (.bdf)"));
-    component_entity!(text_color_r_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("255");
-        s.set_value("255".to_string(), window, cx); s
-    });
-    component_entity!(text_color_g_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("80");
-        s.set_value("80".to_string(), window, cx); s
-    });
-    component_entity!(text_color_b_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("80");
-        s.set_value("80".to_string(), window, cx); s
-    });
-
-    // 矩形图层属性输入
-    component_entity!(rect_width_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("宽度");
-        s.set_value("16".to_string(), window, cx); s
-    });
-    component_entity!(rect_height_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("高度");
-        s.set_value("16".to_string(), window, cx); s
-    });
-    component_entity!(rect_radius_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("圆角");
-        s.set_value("0".to_string(), window, cx); s
-    });
-    component_entity!(rect_color_r_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("255");
-        s.set_value("255".to_string(), window, cx); s
-    });
-    component_entity!(rect_color_g_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("255");
-        s.set_value("255".to_string(), window, cx); s
-    });
-    component_entity!(rect_color_b_input: InputState = {
-        let mut s = InputState::new(window, cx).placeholder("255");
-        s.set_value("255".to_string(), window, cx); s
-    });
+    component_entity!(text_property_editor: TextPropertyEditor = TextPropertyEditor::new(cx, window));
+    component_entity!(rect_property_editor: RectPropertyEditor = RectPropertyEditor::new(cx, window));
 
     // 监听 AppState 变化（外部打开新项目时同步）
     observe!(AppState, |page, window, cx| {
@@ -113,6 +74,14 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         page.frame_height_input.update(cx, |s, cx| s.set_value(h.to_string(), window, cx));
         cx.update_global::<LiveProject, _>(|lp, _| lp.0 = new_project);
         cx.notify();
+    });
+
+    observe!(LiveProject, |page, _window, cx| {
+        let live_project = cx.global::<LiveProject>().0.clone();
+        if live_project != page.project {
+            page.project = live_project;
+            cx.notify();
+        }
     });
 
     // ---- 项目名称 ----
@@ -203,229 +172,6 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         }
     );
 
-    // ---- 文字图层输入订阅 ----
-    subscribe!(
-        text_content_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let value = text_content_input.read(cx).value().to_string();
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Text(t)) = frame.contents.get_mut(idx).map(|l| &mut l.content) {
-                            t.text = value;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        text_font_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let value = text_font_input.read(cx).value().to_string();
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Text(t)) = frame.contents.get_mut(idx).map(|l| &mut l.content) {
-                            t.font = value;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        text_color_r_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u8 = text_color_r_input.read(cx).value().parse().unwrap_or(255);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Text(t)) = frame.contents.get_mut(idx).map(|l| &mut l.content) {
-                            t.color.0 = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        text_color_g_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u8 = text_color_g_input.read(cx).value().parse().unwrap_or(80);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Text(t)) = frame.contents.get_mut(idx).map(|l| &mut l.content) {
-                            t.color.1 = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        text_color_b_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u8 = text_color_b_input.read(cx).value().parse().unwrap_or(80);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Text(t)) = frame.contents.get_mut(idx).map(|l| &mut l.content) {
-                            t.color.2 = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    // ---- 矩形图层输入订阅 ----
-    subscribe!(
-        rect_width_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u32 = rect_width_input.read(cx).value().parse().unwrap_or(0);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Rectangle(r)) =
-                            frame.contents.get_mut(idx).map(|l| &mut l.content)
-                        {
-                            r.width = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        rect_height_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u32 = rect_height_input.read(cx).value().parse().unwrap_or(0);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Rectangle(r)) =
-                            frame.contents.get_mut(idx).map(|l| &mut l.content)
-                        {
-                            r.height = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        rect_radius_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u32 = rect_radius_input.read(cx).value().parse().unwrap_or(0);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Rectangle(r)) =
-                            frame.contents.get_mut(idx).map(|l| &mut l.content)
-                        {
-                            r.radius = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        rect_color_r_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u8 = rect_color_r_input.read(cx).value().parse().unwrap_or(255);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Rectangle(r)) =
-                            frame.contents.get_mut(idx).map(|l| &mut l.content)
-                        {
-                            r.color.0 = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        rect_color_g_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u8 = rect_color_g_input.read(cx).value().parse().unwrap_or(255);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Rectangle(r)) =
-                            frame.contents.get_mut(idx).map(|l| &mut l.content)
-                        {
-                            r.color.1 = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
-    subscribe!(
-        rect_color_b_input,
-        |view, _state, event, _window, cx| match event {
-            InputEvent::Change => {
-                let v: u8 = rect_color_b_input.read(cx).value().parse().unwrap_or(255);
-                if let Some(idx) = view.selected_layer {
-                    if let Some(frame) = view.project.frames.first_mut() {
-                        if let Some(ComponentLayer::Rectangle(r)) =
-                            frame.contents.get_mut(idx).map(|l| &mut l.content)
-                        {
-                            r.color.2 = v;
-                            sync_live_project(cx, &view.project);
-                        }
-                    }
-                }
-                cx.notify();
-            }
-            _ => {}
-        }
-    );
-
     // ---- 构建图层列表 ----
     let layers = self
         .project
@@ -449,17 +195,6 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 ComponentLayer::Rectangle(r) => format!("矩形 {}×{}", r.width, r.height),
             };
             let is_selected = self.selected_layer == Some(idx);
-            let text_input = self.text_content_input.clone();
-            let font_input = self.text_font_input.clone();
-            let tr_input = self.text_color_r_input.clone();
-            let tg_input = self.text_color_g_input.clone();
-            let tb_input = self.text_color_b_input.clone();
-            let rw_input = self.rect_width_input.clone();
-            let rh_input = self.rect_height_input.clone();
-            let rr_input = self.rect_radius_input.clone();
-            let rrr_input = self.rect_color_r_input.clone();
-            let rrg_input = self.rect_color_g_input.clone();
-            let rrb_input = self.rect_color_b_input.clone();
             let x_input = self.layer_x_input.clone();
             let y_input = self.layer_y_input.clone();
 
@@ -485,28 +220,6 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                         let (px, py) = (layer.x, layer.y);
                                         x_input.update(cx, |s, cx| s.set_value(px.to_string(), window, cx));
                                         y_input.update(cx, |s, cx| s.set_value(py.to_string(), window, cx));
-                                        match &layer.content {
-                                            ComponentLayer::Text(t) => {
-                                                let txt = t.text.clone();
-                                                let fnt = t.font.clone();
-                                                let (r, g, b) = t.color;
-                                                text_input.update(cx, |s, cx| s.set_value(txt, window, cx));
-                                                font_input.update(cx, |s, cx| s.set_value(fnt, window, cx));
-                                                tr_input.update(cx, |s, cx| s.set_value(r.to_string(), window, cx));
-                                                tg_input.update(cx, |s, cx| s.set_value(g.to_string(), window, cx));
-                                                tb_input.update(cx, |s, cx| s.set_value(b.to_string(), window, cx));
-                                            }
-                                            ComponentLayer::Rectangle(r) => {
-                                                let (w, h, rad) = (r.width, r.height, r.radius);
-                                                let (cr, cg, cb) = r.color;
-                                                rw_input.update(cx, |s, cx| s.set_value(w.to_string(), window, cx));
-                                                rh_input.update(cx, |s, cx| s.set_value(h.to_string(), window, cx));
-                                                rr_input.update(cx, |s, cx| s.set_value(rad.to_string(), window, cx));
-                                                rrr_input.update(cx, |s, cx| s.set_value(cr.to_string(), window, cx));
-                                                rrg_input.update(cx, |s, cx| s.set_value(cg.to_string(), window, cx));
-                                                rrb_input.update(cx, |s, cx| s.set_value(cb.to_string(), window, cx));
-                                            }
-                                        }
                                     }
                                 }
                                 cx.notify();
@@ -600,62 +313,29 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div().into_any_element()
     };
 
+    self.text_property_editor
+        .update(cx, |editor, _| editor.set_selected_layer(self.selected_layer));
+    self.rect_property_editor
+        .update(cx, |editor, _| editor.set_selected_layer(self.selected_layer));
+
     let property_panel: AnyElement = match selected_layer_type {
-        Some("text") => build_text_property_editor(
-            cx,
-            position_row,
-            &self.text_content_input,
-            &self.text_font_input,
-            &self.text_color_r_input,
-            &self.text_color_g_input,
-            &self.text_color_b_input,
-        ),
-        Some("rect") => build_rect_property_editor(
-            cx,
-            position_row,
-            &self.rect_width_input,
-            &self.rect_height_input,
-            &self.rect_radius_input,
-            &self.rect_color_r_input,
-            &self.rect_color_g_input,
-            &self.rect_color_b_input,
-        ),
+        Some("text") => v_flex()
+            .gap_2()
+            .px_3()
+            .child(position_row)
+            .child(self.text_property_editor.clone())
+            .into_any_element(),
+        Some("rect") => v_flex()
+            .gap_2()
+            .px_3()
+            .child(position_row)
+            .child(self.rect_property_editor.clone())
+            .into_any_element(),
         _ => div()
             .p_3()
             .text_color(cx.theme().muted_foreground)
             .child("↑ 点击上方的图层以编辑属性")
             .into_any_element(),
-    };
-
-    // ---- 字体快速选择（仅文字图层） ----
-    let font_hint: AnyElement = {
-        let fonts = cx.global::<AppState>().config.font_list.clone();
-        if !fonts.is_empty() && selected_layer_type == Some("text") {
-            let items: Vec<AnyElement> = fonts
-                .iter()
-                .enumerate()
-                .map(|(fidx, np)| {
-                    let path_str = np.path.to_string_lossy().to_string();
-                    let label = if np.name.is_empty() { path_str.clone() } else { np.name.clone() };
-                    let font_entity = self.text_font_input.clone();
-                    Button::new(("font-pick", fidx))
-                        .label(label)
-                        .ghost()
-                        .on_click(cx.listener(move |_view, _, window, cx| {
-                            font_entity.update(cx, |s, cx| s.set_value(path_str.clone(), window, cx));
-                        }))
-                        .into_any_element()
-                })
-                .collect();
-            v_flex()
-                .gap_1()
-                .px_3()
-                .child(div().text_sm().text_color(cx.theme().muted_foreground).child("可用字体："))
-                .children(items)
-                .into_any_element()
-        } else {
-            div().into_any_element()
-        }
     };
 
     // ---- 整体布局 ----
@@ -757,7 +437,6 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         )
         .child(div().h_px().bg(cx.theme().border).mx_3())
         .child(property_panel)
-        .child(font_hint)
         .child(div().flex_grow())
         .child(
             h_flex().w_full().justify_center().pb_3().child(
