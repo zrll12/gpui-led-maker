@@ -38,7 +38,8 @@ pub fn render_led_matrices(matrix: &Matrix, options: &LedRenderOptions) -> RgbIm
             let cx = (x as u32 * cell + options.led_size / 2) as i32;
             let cy = (y as u32 * cell + options.led_size / 2) as i32;
 
-            draw_filled_circle_mut(&mut img, (cx, cy), radius, value);
+            let color = value.unwrap_or(Rgb(options.off_color));
+            draw_filled_circle_mut(&mut img, (cx, cy), radius, color);
         }
     }
 

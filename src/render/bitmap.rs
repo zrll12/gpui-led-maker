@@ -133,9 +133,9 @@ pub fn bitmap_to_matrix(bitmap: &str, color: Rgb<u8>) -> Option<Matrix> {
         for bit_index in (0..width).rev() {
             let bit = ((value >> bit_index) & 1) as u8;
             let pixel = if bit == 1 {
-                color
+                Some(color)
             } else {
-                Rgb([0, 0, 0])
+                None  // 透明背景
             };
             row.push(pixel);
         }

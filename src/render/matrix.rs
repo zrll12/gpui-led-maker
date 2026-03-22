@@ -1,6 +1,6 @@
 use image::Rgb;
 
-pub type Matrix = Vec<Vec<Rgb<u8>>>;
+pub type Matrix = Vec<Vec<Option<Rgb<u8>>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VerticalAlign {
@@ -44,28 +44,27 @@ pub fn concat_horizontal_aligned(left: &Matrix, right: &Matrix, align: VerticalA
 	}
 
 	// Pre-compute widths so absent rows (due to vertical offset or source running out)
-	// are padded with black to keep all output rows the same total width.
+	// are padded with None (transparent) to keep all output rows the same total width.
 	// Rows that *exist* in the source are used as-is (no intra-row padding).
 	let left_w = left.iter().map(|r| r.len()).max().unwrap_or(0);
 	let right_w = right.iter().map(|r| r.len()).max().unwrap_or(0);
-	let black = Rgb([0u8, 0, 0]);
 
 	let mut out = Vec::with_capacity(rows);
 	for y in 0..rows {
 		let mut row = Vec::with_capacity(left_w + right_w);
 
-		// Left side: use source row if present, else fill with black
+		// Left side: use source row if present, else fill with None (transparent)
 		let left_src_y = y.checked_sub(left_offset);
 		match left_src_y.and_then(|sy| left.get(sy)) {
 			Some(lr) => row.extend_from_slice(lr),
-			None => row.resize(left_w, black),
+			None => row.resize(left_w, None),
 		}
 
-		// Right side: use source row if present, else fill with black
+		// Right side: use source row if present, else fill with None (transparent)
 		let right_src_y = y.checked_sub(right_offset);
 		match right_src_y.and_then(|sy| right.get(sy)) {
 			Some(rr) => row.extend_from_slice(rr),
-			None => row.resize(row.len() + right_w, black),
+			None => row.resize(row.len() + right_w, None),
 		}
 
 		out.push(row);
@@ -102,8 +101,7 @@ fn vertical_offset(container_rows: usize, source_rows: usize, align: VerticalAli
 /// - Center: use the full span from first to last non-empty row
 /// Falls back to the raw row count when the matrix is all-blank.
 fn content_rows(matrix: &Matrix, align: VerticalAlign) -> usize {
-	let black = Rgb([0u8, 0, 0]);
-	let is_blank = |row: &Vec<Rgb<u8>>| row.iter().all(|p| *p == black);
+	let is_blank = |row: &Vec<Option<Rgb<u8>>>| row.iter().all(|p| p.is_none());
 
 	let total = matrix.len();
 	if total == 0 {
@@ -161,7 +159,10 @@ pub fn overlay_at_clipped(base: &Matrix, overlay: &Matrix, offset_x: i32, offset
 			if target_x < 0 || target_x >= base_w {
 				continue;
 			}
-			out[ty][target_x as usize] = *pixel;
+			// None 表示透明，跳过不覆盖底层
+			if pixel.is_some() {
+				out[ty][target_x as usize] = *pixel;
+			}
 		}
 	}
 
@@ -178,11 +179,14 @@ pub fn overlay_at(base: &Matrix, overlay: &Matrix, offset_x: usize, offset_y: us
 		}
 
 		if out[target_y].len() < offset_x + overlay_row.len() {
-			out[target_y].resize(offset_x + overlay_row.len(), Rgb([0, 0, 0]));
+			out[target_y].resize(offset_x + overlay_row.len(), None);
 		}
 
 		for (x, pixel) in overlay_row.iter().enumerate() {
-			out[target_y][offset_x + x] = *pixel;
+			// None 表示透明，跳过不覆盖底层
+			if pixel.is_some() {
+				out[target_y][offset_x + x] = *pixel;
+			}
 		}
 	}
 
@@ -198,63 +202,66 @@ mod tests {
 		Rgb([v, v, v])
 	}
 
+	fn s(v: u8) -> Option<Rgb<u8>> {
+		Some(Rgb([v, v, v]))
+	}
+
 	#[test]
 	fn concat_horizontal_joins_rows() {
-		let left: Matrix = vec![vec![p(1), p(2)], vec![p(3)]];
-		let right: Matrix = vec![vec![p(4)], vec![p(5), p(6)]];
+		let left: Matrix = vec![vec![s(1), s(2)], vec![s(3)]];
+		let right: Matrix = vec![vec![s(4)], vec![s(5), s(6)]];
 
 		let merged = concat_horizontal(&left, &right);
 
-		assert_eq!(merged[0], vec![p(1), p(2), p(4)]);
-		assert_eq!(merged[1], vec![p(3), p(5), p(6)]);
+		assert_eq!(merged[0], vec![s(1), s(2), s(4)]);
+		assert_eq!(merged[1], vec![s(3), s(5), s(6)]);
 	}
 
 	#[test]
 	fn concat_horizontal_center_aligns_shorter_matrix() {
-		let left: Matrix = vec![vec![p(1)], vec![p(2)], vec![p(3)], vec![p(4)]];
-		let right: Matrix = vec![vec![p(9)], vec![p(8)]];
+		let left: Matrix = vec![vec![s(1)], vec![s(2)], vec![s(3)], vec![s(4)]];
+		let right: Matrix = vec![vec![s(9)], vec![s(8)]];
 
 		let merged = concat_horizontal_aligned(&left, &right, VerticalAlign::Center);
 
 		// right (2 rows) is centered within 4: right_offset=1.
-		// Absent-side rows are padded with black (p(0)) so all rows are width=2.
-		assert_eq!(merged[0], vec![p(1), p(0)]);
-		assert_eq!(merged[1], vec![p(2), p(9)]);
-		assert_eq!(merged[2], vec![p(3), p(8)]);
-		assert_eq!(merged[3], vec![p(4), p(0)]);
+		// Absent-side rows are padded with None (transparent) so all rows are width=2.
+		assert_eq!(merged[0], vec![s(1), None]);
+		assert_eq!(merged[1], vec![s(2), s(9)]);
+		assert_eq!(merged[2], vec![s(3), s(8)]);
+		assert_eq!(merged[3], vec![s(4), None]);
 	}
 
 	#[test]
 	fn concat_horizontal_bottom_aligns_shorter_matrix() {
-		let left: Matrix = vec![vec![p(1)], vec![p(2)], vec![p(3)]];
-		let right: Matrix = vec![vec![p(9)]];
+		let left: Matrix = vec![vec![s(1)], vec![s(2)], vec![s(3)]];
+		let right: Matrix = vec![vec![s(9)]];
 
 		let merged = concat_horizontal_aligned(&left, &right, VerticalAlign::Bottom);
 
 		// right (1 row) sits at bottom: right_offset=2.
-		// Rows 0-1 have no right content → padded with black (p(0)).
-		assert_eq!(merged[0], vec![p(1), p(0)]);
-		assert_eq!(merged[1], vec![p(2), p(0)]);
-		assert_eq!(merged[2], vec![p(3), p(9)]);
+		// Rows 0-1 have no right content → padded with None (transparent).
+		assert_eq!(merged[0], vec![s(1), None]);
+		assert_eq!(merged[1], vec![s(2), None]);
+		assert_eq!(merged[2], vec![s(3), s(9)]);
 	}
 
 	#[test]
 	fn concat_horizontal_bottom_aligns_padded_matrices() {
 		// Simulate BDF-style: both matrices are 4 rows tall,
 		// but left has content in all 4 rows while right only has content in rows 0-1,
-		// with rows 2-3 being blank (all-zero).
-		let z = p(0); // black/blank pixel
+		// with rows 2-3 being blank (None/transparent).
 		let left: Matrix = vec![
-			vec![p(1)],
-			vec![p(2)],
-			vec![p(3)],
-			vec![p(4)],
+			vec![s(1)],
+			vec![s(2)],
+			vec![s(3)],
+			vec![s(4)],
 		];
 		let right: Matrix = vec![
-			vec![p(9)], // content row 0
-			vec![p(8)], // content row 1
-			vec![z],    // blank/padding
-			vec![z],    // blank/padding
+			vec![s(9)],   // content row 0
+			vec![s(8)],   // content row 1
+			vec![None],   // blank/padding
+			vec![None],   // blank/padding
 		];
 
 		let merged = concat_horizontal_aligned(&left, &right, VerticalAlign::Bottom);
@@ -265,27 +272,44 @@ mod tests {
 		// left_offset = v_offset(4,4,Bot)+v_offset(4,4,Bot) = 0
 		// right_offset = v_offset(4,2,Bot)+v_offset(4,4,Bot) = 2+0 = 2
 		// So right[0] lands at merged[2], right[1] at merged[3].
-		// Rows 0-1 have no right content → padded with black (p(0)).
-		assert_eq!(merged[0], vec![p(1), p(0)], "row 0");
-		assert_eq!(merged[1], vec![p(2), p(0)], "row 1");
-		assert_eq!(merged[2], vec![p(3), p(9)], "row 2: left p(3) + right p(9)");
-		assert_eq!(merged[3], vec![p(4), p(8)], "row 3: left p(4) + right p(8)");
+		// Rows 0-1 have no right content → padded with None (transparent).
+		assert_eq!(merged[0], vec![s(1), None], "row 0");
+		assert_eq!(merged[1], vec![s(2), None], "row 1");
+		assert_eq!(merged[2], vec![s(3), s(9)], "row 2: left s(3) + right s(9)");
+		assert_eq!(merged[3], vec![s(4), s(8)], "row 3: left s(4) + right s(8)");
 		assert_eq!(merged.len(), 4);
 	}
 
 	#[test]
 	fn overlay_at_replaces_pixels_with_offset() {
 		let base: Matrix = vec![
-			vec![p(0), p(0), p(0)],
-			vec![p(0), p(0), p(0)],
-			vec![p(0), p(0), p(0)],
+			vec![None, None, None],
+			vec![None, None, None],
+			vec![None, None, None],
 		];
-		let top: Matrix = vec![vec![p(7), p(8)], vec![p(9), p(1)]];
+		let top: Matrix = vec![vec![s(7), s(8)], vec![s(9), s(1)]];
 
 		let out = overlay_at(&base, &top, 1, 1);
 
-		assert_eq!(out[0], vec![p(0), p(0), p(0)]);
-		assert_eq!(out[1], vec![p(0), p(7), p(8)]);
-		assert_eq!(out[2], vec![p(0), p(9), p(1)]);
+		assert_eq!(out[0], vec![None, None, None]);
+		assert_eq!(out[1], vec![None, s(7), s(8)]);
+		assert_eq!(out[2], vec![None, s(9), s(1)]);
+	}
+
+	#[test]
+	fn overlay_at_skips_transparent_pixels() {
+		let base: Matrix = vec![
+			vec![s(1), s(2), s(3)],
+			vec![s(4), s(5), s(6)],
+		];
+		// overlay has transparent pixels mixed with colored ones
+		let top: Matrix = vec![vec![None, s(9), None], vec![s(7), None, s(8)]];
+		let _ = p(0); // suppress unused warning
+
+		let out = overlay_at(&base, &top, 0, 0);
+
+		// None in overlay should NOT overwrite base pixels
+		assert_eq!(out[0], vec![s(1), s(9), s(3)]);
+		assert_eq!(out[1], vec![s(7), s(5), s(8)]);
 	}
 }

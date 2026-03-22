@@ -34,7 +34,7 @@ pub fn render_bdf_preview_image(path: &Path) -> Option<PathBuf> {
     let matrix = text_to_matrix(PREVIEW_TEXT, &glyphs, Rgb([255, 80, 80]), VerticalAlign::Bottom);
     let has_pixels = matrix
         .iter()
-        .any(|row| row.iter().any(|pixel| pixel.0 != [0, 0, 0]));
+        .any(|row| row.iter().any(|pixel| pixel.is_some()));
     if !has_pixels {
         let _ = std::fs::write(&missing_marker, b"missing");
         return None;

@@ -19,9 +19,8 @@ pub fn render_frame_to_image(frame: &Frame, font_list: &[NamedPath]) -> Option<R
         return None;
     }
 
-    // 创建固定尺寸的黑色画布
-    let black = Rgb([0u8, 0, 0]);
-    let mut canvas: Matrix = vec![vec![black; frame.width as usize]; frame.height as usize];
+    // 创建固定尺寸的透明画布
+    let mut canvas: Matrix = vec![vec![None; frame.width as usize]; frame.height as usize];
     let mut has_content = false;
 
     for layer in &frame.contents {
@@ -78,7 +77,7 @@ fn render_layer(layer: &ComponentLayer, font_list: &[NamedPath]) -> Option<Matri
             }
             let color = Rgb([rect.color.0, rect.color.1, rect.color.2]);
             let matrix: Matrix = (0..rect.height as usize)
-                .map(|_| vec![color; rect.width as usize])
+                .map(|_| vec![Some(color); rect.width as usize])
                 .collect();
             Some(matrix)
         }

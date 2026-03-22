@@ -508,6 +508,44 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                     ),
                 )
                 .child(
+                    Button::new(("layer-up", idx))
+                        .label("↑")
+                        .ghost()
+                        .on_click(cx.listener(move |view, _, _, cx| {
+                            if let Some(frame) = view.project.frames.first_mut() {
+                                if idx > 0 && idx < frame.contents.len() {
+                                    frame.contents.swap(idx, idx - 1);
+                                    match view.selected_layer {
+                                        Some(sel) if sel == idx => view.selected_layer = Some(idx - 1),
+                                        Some(sel) if sel == idx - 1 => view.selected_layer = Some(idx),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            sync_live_project(cx, &view.project);
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    Button::new(("layer-down", idx))
+                        .label("↓")
+                        .ghost()
+                        .on_click(cx.listener(move |view, _, _, cx| {
+                            if let Some(frame) = view.project.frames.first_mut() {
+                                if idx + 1 < frame.contents.len() {
+                                    frame.contents.swap(idx, idx + 1);
+                                    match view.selected_layer {
+                                        Some(sel) if sel == idx => view.selected_layer = Some(idx + 1),
+                                        Some(sel) if sel == idx + 1 => view.selected_layer = Some(idx),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            sync_live_project(cx, &view.project);
+                            cx.notify();
+                        })),
+                )
+                .child(
                     Button::new(("layer-remove", idx))
                         .label("✕")
                         .ghost()
