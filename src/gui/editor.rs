@@ -1,3 +1,6 @@
+mod rect_component_editor;
+mod text_component_editor;
+
 use crate::gui::Render;
 use crate::modal::app_state::{AppState, LiveProject};
 use crate::modal::project::{ComponentLayer, LedMakerProject, PositionedLayer, RectangleComponent, TextComponent};
@@ -6,6 +9,8 @@ use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::{ActiveTheme, h_flex, v_flex};
 use simple_gpui::component;
+use crate::gui::editor::rect_component_editor::build_rect_property_editor;
+use crate::gui::editor::text_component_editor::build_text_property_editor;
 
 fn sync_live_project(cx: &mut impl BorrowAppContext, project: &LedMakerProject) {
     cx.update_global::<LiveProject, _>(|lp, _| lp.0 = project.clone());
@@ -595,57 +600,25 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
     };
 
     let property_panel: AnyElement = match selected_layer_type {
-        Some("text") => v_flex()
-            .gap_2()
-            .p_3()
-            .child(div().text_sm().text_color(cx.theme().muted_foreground).child("文字图层属性"))
-            .child(position_row)
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("文字:"))
-                    .child(Input::new(&self.text_content_input).w_full().flex_grow()),
-            )
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("字体:"))
-                    .child(Input::new(&self.text_font_input).w_full().flex_grow()),
-            )
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("颜色 RGB:"))
-                    .child(Input::new(&self.text_color_r_input).w_16())
-                    .child(Input::new(&self.text_color_g_input).w_16())
-                    .child(Input::new(&self.text_color_b_input).w_16()),
-            )
-            .into_any_element(),
-        Some("rect") => v_flex()
-            .gap_2()
-            .p_3()
-            .child(div().text_sm().text_color(cx.theme().muted_foreground).child("矩形图层属性"))
-            .child(position_row)
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("宽度:"))
-                    .child(Input::new(&self.rect_width_input).w_24()),
-            )
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("高度:"))
-                    .child(Input::new(&self.rect_height_input).w_24()),
-            )
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("圆角:"))
-                    .child(Input::new(&self.rect_radius_input).w_24()),
-            )
-            .child(
-                h_flex().gap_2().items_center()
-                    .child(div().w_16().child("颜色 RGB:"))
-                    .child(Input::new(&self.rect_color_r_input).w_16())
-                    .child(Input::new(&self.rect_color_g_input).w_16())
-                    .child(Input::new(&self.rect_color_b_input).w_16()),
-            )
-            .into_any_element(),
+        Some("text") => build_text_property_editor(
+            cx,
+            position_row,
+            &self.text_content_input,
+            &self.text_font_input,
+            &self.text_color_r_input,
+            &self.text_color_g_input,
+            &self.text_color_b_input,
+        ),
+        Some("rect") => build_rect_property_editor(
+            cx,
+            position_row,
+            &self.rect_width_input,
+            &self.rect_height_input,
+            &self.rect_radius_input,
+            &self.rect_color_r_input,
+            &self.rect_color_g_input,
+            &self.rect_color_b_input,
+        ),
         _ => div()
             .p_3()
             .text_color(cx.theme().muted_foreground)
