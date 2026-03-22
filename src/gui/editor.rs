@@ -7,6 +7,7 @@ use crate::modal::project::{ComponentLayer, LedMakerProject, PositionedLayer, Re
 use gpui::{AnyElement, AppContext, BorrowAppContext, Context, Entity, IntoElement, ParentElement, Styled, Subscription, Window, div};
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
+use gpui_component::scroll::ScrollableElement;
 use gpui_component::{ActiveTheme, h_flex, v_flex};
 use simple_gpui::component;
 use crate::gui::editor::rect_component_editor::build_rect_property_editor;
@@ -622,7 +623,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         _ => div()
             .p_3()
             .text_color(cx.theme().muted_foreground)
-            .child("← 点击左侧图层以编辑属性")
+            .child("↑ 点击上方的图层以编辑属性")
             .into_any_element(),
     };
 
@@ -736,21 +737,23 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 ),
         )
         .child(
-            v_flex()
-                .gap_1()
+            div()
                 .px_3()
                 .min_h_16()
                 .max_h_48()
-                .children(if layer_items.is_empty() {
-                    vec![div()
-                        .p_2()
-                        .text_color(cx.theme().muted_foreground)
-                        .text_sm()
-                        .child("暂无图层，点击上方按钮添加")
-                        .into_any_element()]
-                } else {
-                    layer_items
-                }),
+                .overflow_y_scrollbar()
+                .child(
+                    v_flex().gap_1().children(if layer_items.is_empty() {
+                        vec![div()
+                            .p_2()
+                            .text_color(cx.theme().muted_foreground)
+                            .text_sm()
+                            .child("暂无图层，点击上方按钮添加")
+                            .into_any_element()]
+                    } else {
+                        layer_items
+                    }),
+                ),
         )
         .child(div().h_px().bg(cx.theme().border).mx_3())
         .child(property_panel)
