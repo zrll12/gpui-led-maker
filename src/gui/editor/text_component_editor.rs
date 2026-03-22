@@ -144,12 +144,19 @@ pub fn text_property_editor(window: &mut Window, cx: &mut Context<Self>) -> impl
                     } else {
                         np.name.clone()
                     };
+                    let value_to_set = if np.name.is_empty() {
+                        path_str.clone()
+                    } else {
+                        np.name.clone()
+                    };
                     let font_entity = self.text_font_input.clone();
                     Button::new(("font-pick", fidx))
                         .label(label)
                         .ghost()
                         .on_click(cx.listener(move |_view, _, window, cx| {
-                            font_entity.update(cx, |s, cx| s.set_value(path_str.clone(), window, cx));
+                            font_entity.update(cx, |s, cx| {
+                                s.set_value(value_to_set.clone(), window, cx)
+                            });
                         }))
                         .into_any_element()
                 })

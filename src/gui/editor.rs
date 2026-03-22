@@ -372,6 +372,19 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                     Button::new("add-text-layer")
                         .label("+ 文字")
                         .on_click(cx.listener(|view, _, _, cx| {
+                            let default_font = cx
+                                .global::<AppState>()
+                                .config
+                                .font_list
+                                .first()
+                                .map(|f| {
+                                    if f.name.is_empty() {
+                                        f.path.to_string_lossy().to_string()
+                                    } else {
+                                        f.name.clone()
+                                    }
+                                })
+                                .unwrap_or_default();
                             if view.project.frames.is_empty() {
                                 view.project.frames.push(Default::default());
                             }
@@ -381,7 +394,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                     y: 0,
                                     content: ComponentLayer::Text(TextComponent {
                                         text: String::new(),
-                                        font: String::new(),
+                                        font: default_font,
                                         color: (255, 80, 80),
                                     }),
                                 });

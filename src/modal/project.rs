@@ -5,6 +5,7 @@ use gpui::Context;
 use rfd::{AsyncFileDialog, MessageDialog};
 use crate::modal::AppError;
 use crate::modal::app_state::AppState;
+use crate::modal::config::NamedPath;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct LedMakerProject {
@@ -72,6 +73,20 @@ pub struct RectangleComponent {
 
 
 impl LedMakerProject {
+    pub fn normalize_text_fonts_to_names(&mut self, font_list: &[NamedPath]) {
+        for frame in &mut self.frames {
+            for layer in &mut frame.contents {
+                if let ComponentLayer::Text(text) = &mut layer.content {
+                    if let Some(named_font) = font_list.iter().find(|np| {
+                        !np.name.is_empty() && np.path.to_string_lossy() == text.font
+                    }) {
+                        text.font = named_font.name.clone();
+                    }
+                }
+            }
+        }
+    }
+
     pub fn load(path: &PathBuf) -> Result<Self, AppError> {
         let file = std::fs::read_to_string(&path)?;
         let project: Self = toml::from_str(&file)?;
@@ -88,7 +103,9 @@ impl LedMakerProject {
 
     pub fn save_project<T: 'static>(&self, cx: &mut Context<T>) {
         println!("Saving project: {}", self.name);
-        let project = self.clone();
+        let mut project = self.clone();
+        let font_list = cx.global::<AppState>().config.font_list.clone();
+        project.normalize_text_fonts_to_names(&font_list);
         let file_path = cx.global::<AppState>().file_path.clone();
 
         cx.spawn(
