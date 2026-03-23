@@ -1,8 +1,10 @@
+#![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
+
 mod render;
 mod gui;
 mod modal;
 
-use gpui::{AppContext, Application, WindowOptions};
+use gpui::{AppContext, Application, TitlebarOptions, WindowOptions};
 use crate::gui::MainPage;
 use crate::gui::menu::set_app_menus;
 use crate::modal::app_state::{AppState, LiveProject};
@@ -11,19 +13,6 @@ const HEX_FILE: &str = "test-data/input.hex";
 const OUTPUT_FILE: &str = "led_output.png";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // let glyphs = load_unifont_hex(HEX_FILE)?;
-    // let matrix = text_to_matrix("Some Texts😀", &glyphs);
-    //
-    // let options = LedRenderOptions {
-    //     led_size: 14,
-    //     spacing: 4,
-    //     ..Default::default()
-    // };
-    //
-    // let img = render_led_matrices(&matrix, &options);
-    // img.save(OUTPUT_FILE)?;
-    //
-    // println!("Saved to {OUTPUT_FILE}");
 
     Application::new().run(move |cx| {
         gpui_component::init(cx);
@@ -38,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let window_options = WindowOptions::default();
         cx.spawn(async move |cx| {
             cx.open_window(window_options, |window, cx| {
+                window.set_window_title("LED Maker");
                 let view = cx.new(|cx| MainPage::new(cx, window));
                 cx.new(|cx| gpui_component::Root::new(view, window, cx))
             })

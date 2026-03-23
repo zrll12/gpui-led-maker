@@ -16,6 +16,14 @@ use crate::gui::bottom_panel::BottomPanel;
 #[component]
 pub fn main_page(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
     init_with_context!();
+    let project_name = cx.global::<AppState>().current_project.name.clone();
+    if project_name.is_empty() {
+        window.set_window_title("LED Maker");
+    } else {
+        let title = format!("LED Maker - {}", project_name);
+        window.set_window_title(&title);
+    }
+
     component_entity!(editor: Editor = {
         let project = cx.global::<AppState>().current_project.clone();
         Editor::new(project, cx, window)
