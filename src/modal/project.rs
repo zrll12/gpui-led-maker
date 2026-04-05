@@ -61,6 +61,28 @@ pub struct TextComponent {
     pub text: String,
     pub font: String,
     pub color: (u8, u8, u8),
+    #[serde(default)]
+    pub effects: Vec<TextEffect>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub enum TextEffect {
+    Outline(TextOutlineEffect),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct TextOutlineEffect {
+    pub width: u32,
+    pub color: (u8, u8, u8),
+}
+
+impl Default for TextOutlineEffect {
+    fn default() -> Self {
+        Self {
+            width: 1,
+            color: (0, 0, 0),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]

@@ -17,6 +17,29 @@ fn sync_live_project(cx: &mut impl BorrowAppContext, project: &LedMakerProject) 
     cx.update_global::<LiveProject, _>(|lp, _| lp.0 = project.clone());
 }
 
+fn sync_selected_layer_editors(view: &mut Editor, window: &mut Window, cx: &mut Context<Editor>) {
+    let (x, y) = view
+        .selected_layer
+        .and_then(|idx| {
+            view.project
+                .frames
+                .first()
+                .and_then(|f| f.contents.get(idx))
+                .map(|layer| (layer.x, layer.y))
+        })
+        .unwrap_or((0, 0));
+
+    view.layer_x_input
+        .update(cx, |s, cx| s.set_value(x.to_string(), window, cx));
+    view.layer_y_input
+        .update(cx, |s, cx| s.set_value(y.to_string(), window, cx));
+
+    view.text_property_editor
+        .update(cx, |editor, _| editor.set_selected_layer(view.selected_layer));
+    view.rect_property_editor
+        .update(cx, |editor, _| editor.set_selected_layer(view.selected_layer));
+}
+
 #[component]
 pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
     init_with_context!();
@@ -195,8 +218,6 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 ComponentLayer::Rectangle(r) => format!("矩形 {}×{}", r.width, r.height),
             };
             let is_selected = self.selected_layer == Some(idx);
-            let x_input = self.layer_x_input.clone();
-            let y_input = self.layer_y_input.clone();
 
             let row_base = h_flex().gap_1().px_2().py_1().rounded_md();
             let row_base = if is_selected {
@@ -215,13 +236,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                             .ghost()
                             .on_click(cx.listener(move |view, _, window, cx| {
                                 view.selected_layer = Some(idx);
-                                if let Some(frame) = view.project.frames.first() {
-                                    if let Some(layer) = frame.contents.get(idx) {
-                                        let (px, py) = (layer.x, layer.y);
-                                        x_input.update(cx, |s, cx| s.set_value(px.to_string(), window, cx));
-                                        y_input.update(cx, |s, cx| s.set_value(py.to_string(), window, cx));
-                                    }
-                                }
+                                sync_selected_layer_editors(view, window, cx);
                                 cx.notify();
                             })),
                     ),
@@ -230,7 +245,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                     Button::new(("layer-up", idx))
                         .label("↑")
                         .ghost()
-                        .on_click(cx.listener(move |view, _, _, cx| {
+                        .on_click(cx.listener(move |view, _, window, cx| {
                             if let Some(frame) = view.project.frames.first_mut() {
                                 if idx > 0 && idx < frame.contents.len() {
                                     frame.contents.swap(idx, idx - 1);
@@ -241,6 +256,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                     }
                                 }
                             }
+                            sync_selected_layer_editors(view, window, cx);
                             sync_live_project(cx, &view.project);
                             cx.notify();
                         })),
@@ -249,7 +265,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                     Button::new(("layer-down", idx))
                         .label("↓")
                         .ghost()
-                        .on_click(cx.listener(move |view, _, _, cx| {
+                        .on_click(cx.listener(move |view, _, window, cx| {
                             if let Some(frame) = view.project.frames.first_mut() {
                                 if idx + 1 < frame.contents.len() {
                                     frame.contents.swap(idx, idx + 1);
@@ -260,6 +276,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                     }
                                 }
                             }
+                            sync_selected_layer_editors(view, window, cx);
                             sync_live_project(cx, &view.project);
                             cx.notify();
                         })),
@@ -268,7 +285,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                     Button::new(("layer-remove", idx))
                         .label("✕")
                         .ghost()
-                        .on_click(cx.listener(move |view, _, _, cx| {
+                        .on_click(cx.listener(move |view, _, window, cx| {
                             if let Some(frame) = view.project.frames.first_mut() {
                                 if idx < frame.contents.len() {
                                     frame.contents.remove(idx);
@@ -281,6 +298,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                     view.selected_layer = Some(sel - 1);
                                 }
                             }
+                            sync_selected_layer_editors(view, window, cx);
                             sync_live_project(cx, &view.project);
                             cx.notify();
                         })),
@@ -371,7 +389,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 .child(
                     Button::new("add-text-layer")
                         .label("+ 文字")
-                        .on_click(cx.listener(|view, _, _, cx| {
+                            .on_click(cx.listener(|view, _, window, cx| {
                             let default_font = cx
                                 .global::<AppState>()
                                 .config
@@ -396,10 +414,12 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                         text: String::new(),
                                         font: default_font,
                                         color: (255, 80, 80),
+                                        effects: Vec::new(),
                                     }),
                                 });
                                 view.selected_layer = Some(frame.contents.len() - 1);
                             }
+                                sync_selected_layer_editors(view, window, cx);
                             sync_live_project(cx, &view.project);
                             cx.notify();
                         })),
@@ -407,7 +427,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 .child(
                     Button::new("add-rect-layer")
                         .label("+ 矩形")
-                        .on_click(cx.listener(|view, _, _, cx| {
+                        .on_click(cx.listener(|view, _, window, cx| {
                             if view.project.frames.is_empty() {
                                 view.project.frames.push(Default::default());
                             }
@@ -424,6 +444,7 @@ pub fn editor(window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                                 });
                                 view.selected_layer = Some(frame.contents.len() - 1);
                             }
+                            sync_selected_layer_editors(view, window, cx);
                             sync_live_project(cx, &view.project);
                             cx.notify();
                         })),
