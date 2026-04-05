@@ -21,6 +21,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cx.on_action(gui::menu::quit);
         cx.on_action(gui::menu::new_file);
         cx.on_action(gui::menu::open_file);
+        cx.on_window_closed(|cx| {
+            if cx.windows().is_empty() {
+                cx.quit();
+            }
+        })
+        .detach();
         cx.activate(true);
         set_app_menus(cx);
 
